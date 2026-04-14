@@ -1,0 +1,10 @@
+1. Cross initial already fails (-6.19%). The cross has 12 corners — 4 convex outer and 8 concave inner re-entrant angles. Even unoptimized, the two splines diverge significantly at the concave corners. This is not a bug — it's the worst-case geometry for spline disagreement.
+
+2. Square is bad across ALL modes, including maxCF. This is the most telling result. The initial square validates fine (-0.82%), but every optimised version fails at ~15-17%. The cause: the spherical parameterisation expands the square radially, which changes the node spacing non-uniformly. The flat sides develop uneven spacing, and the corners become tighter. NaturalCubicSpline (interpolating) then overshoots the curvature at those corners — more nodes pile up at the min_roc clamp — giving much higher force than spaps (smoothing) which rounds them out. The key word is "clamp" — this is exactly the scenario where the two splines diverge most, because at min_roc the curvature equation is at its steepest (RoC^(-0.94)), so small RoC differences translate to large force differences.
+
+Practical implication. The optimizer is not computing wrong physics — it is computing the right physics with its own spline. But because NaturalCubicSpline overshoots curvature on sharp-cornered optimised shapes, it systematically overpredicts force by up to 17% relative to what the MATLAB tool would actually report. This means the optimizer's reported SEA gains on square-like shapes are somewhat inflated. The true MATLAB-predicted improvement is real, just smaller than the Python number suggests.
+What this means for your results in practice:
+
+Ellipse, rrect, dshape maxCF/minP — results are trustworthy, <5% discrepancy
+Square all modes, teardrop maxSEA, dshape maxSEA — treat Python's reported force as an upper bound; MATLAB would predict ~13-17% less
+Cross — the initial shape already has the spline disagreement baked in, so relative improvements (% change from initial) are still meaningful even if absolute forces aren't

@@ -1,0 +1,39 @@
+CALIBRATION SUMMARY
+File                                       Target (N)                p  Matched (N)  Error %
+----------------------------------------------------------------------------------
+partition_data_layer2_z-132.4.mat            130659.3     0.9994326400     130657.8  -0.0011
+partition_data_layer3_z-122.4.mat            130659.3     0.9994314200     130660.0  +0.0005
+partition_data_layer4_z-112.4.mat            130659.3     0.9994319600     130659.9  +0.0005
+partition_data_layer5_z-102.4.mat            130659.3     0.9994317500     130658.9  -0.0003
+partition_data_layer6_z-92.4.mat             130659.3     0.9994326700     130659.6  +0.0002
+partition_data_layer7_z-82.4.mat             130659.3     0.9994306700     130659.0  -0.0002
+partition_data_layer8_z-72.4.mat              94612.4     0.9983927200      94612.3  -0.0002
+partition_data_layer9_z-62.4.mat              76637.9     0.9984357900      76638.1  +0.0003
+partition_data_layer10_z-52.4.mat             76394.9     0.9992986900      76395.4  +0.0007
+partition_data_layer11_z-42.4.mat             75994.9     0.9993552300      75994.8  -0.0001
+partition_data_layer12_z-32.4.mat             75435.1     0.9993185700      75434.9  -0.0003
+partition_data_layer13_z-22.4.mat             74720.5     0.9993011800      74720.5  -0.0000
+partition_data_layer14_z-12.4.mat             73848.2     0.9992910900      73848.5  +0.0004
+partition_data_layer15_z-2.4.mat              72821.4     0.9992852400      72821.5  +0.0002
+partition_data_layer16_z7.6.mat               71641.2     0.9992386300      71641.1  -0.0001
+partition_data_layer17_z17.6.mat              70308.1     0.9991233000      70308.2  +0.0001
+partition_data_layer18_z27.6.mat              68821.5     0.9990057500      68821.2  -0.0004
+partition_data_layer19_z37.6.mat              67269.6     0.9988110300      67269.4  -0.0002
+partition_data_layer20_z47.6.mat              65710.9     0.4035301500      65726.1  +0.0232
+partition_data_layer21_z57.6.mat              64139.4     0.9977607000      64139.4  +0.0000
+partition_data_layer22_z67.6.mat              62537.4     0.9976150700      62537.3  -0.0001
+partition_data_layer23_z77.6.mat              60890.0     0.9971657900      60891.3  +0.0022
+partition_data_layer24_z87.6.mat              59172.4     0.9973912100      59172.4  -0.0000
+partition_data_layer25_z97.6.mat              57329.2     0.9977784900      57329.2  +0.0001
+partition_data_layer26_z107.6.mat             55255.8     0.9990533200      55255.8  +0.0001
+partition_data_layer27_z117.6.mat             52968.9     0.9998629700      52969.2  +0.0006
+partition_data_layer28_z127.6.mat             50588.8     0.9999784300      50588.1  -0.0014
+partition_data_layer29_z137.6.mat             48438.0     0.9999897500      48439.7  +0.0034
+partition_data_layer30_z147.6.mat             46235.3     0.9999827300      46234.7  -0.0014
+  partition_data_layer31_z157.6.mat           44576.0         FAILED: Could not parse output
+  partition_data_layer32_z167.6.mat           43398.7         FAILED: Could not parse output
+  partition_data_layer33_z177.6.mat           41733.9         FAILED: Could not parse output
+  partition_data_layer34_z187.6.mat           40037.2         FAILED: Could not parse output
+  partition_data_layer35_z197.6.mat           38547.2         FAILED: Could not parse output
+  partition_data_layer36_z207.6.mat           31469.7         FAILED: Could not parse output
+----------------------------------------------------------------------------------

@@ -1,0 +1,24 @@
+# Editor / OS
+.vscode/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# MATLAB / misc temp files
+*.asv
+*.m~
+
+# Generated outputs
+results/
+
+# Project notes / reference material
+Documentation and previous work/
+Overview/
+
+# Local temporary / exploratory outputs
+Rib/NewRun/
+Rib/OldResults/
+NoRib/Old_results/

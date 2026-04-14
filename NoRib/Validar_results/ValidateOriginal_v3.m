@@ -1,0 +1,242 @@
+% =========================================================================
+% Validates the ORIGINAL geometry using the MATLAB analytical tool's
+% Replicates the EXACT same physics as layersProp.m:
+%   - curvatureSpline: spaps (smoothing spline), linspace sQuery, overlap=10
+%   - RoC clamped to [min_roc, flat_transition]
+%   - nodeLength = sum(adjacent edge lengths) / 2
+%   - area = nodeLength x thickness
+%   - crushStress = constantCrushStress x curvatureEq(RoC)
+%   - forceNode = crushStress x area
+%   - forceTotal = sum(forceNode)
+%
+% v3 changes vs ValidateOriginal2:
+%   - Original geometry loaded the same way as the original script
+%   - Python initial force read directly from the optimizer .mat file
+%   - Exported diagnostics match validate_optimizer_v3 / v4
+%
+% DEPENDENCIES: Curve Fitting Toolbox (spaps, fnval, fnder)
+%
+% Francisco Arriscado / FEUP / 2026
+% =========================================================================
+
+clear; 
+clc;
+close all;
+
+%% ======================== PROJECT PATHS ================================
+
+addpath(fullfile(fileparts(mfilename('fullpath')), '..', '..'));
+cfg = config();
+
+%% ======================== USER INPUTS ==================================
+
+% Shape to validate (original geometry from data/)
+% Options: 'square', 'ellipse', 'rrect', 'dshape', 'cross', 'teardrop', etc.
+shape = 'dshape';
+
+% Optimizer .mat file used only to read Python initial force
+matFile = 'dshape_minP_01-04_(v19).mat';
+
+dataFile = fullfile(cfg.data, ['partition_data_' shape '.mat']);
+assert(isfile(dataFile), 'Cannot find original geometry file: %s', dataFile);
+
+% Resolve optimizer .mat path automatically
+matFile = fullfile(cfg.results_norib, matFile);
+assert(isfile(matFile), 'Cannot find optimizer .mat file: %s', matFile);
+
+% Read Python initial force directly from optimizer .mat
+optimizerData = load(matFile);
+assert(isfield(optimizerData, 'forceInitial'), ...
+    'Field "forceInitial" not found in optimizer .mat file: %s', matFile);
+pythonPredictedForce = double(optimizerData.forceInitial);
+
+% Physical parameters (must match what the optimizer used)
+thickness_val       = 2.0;    % [mm]
+constantCrushStress = 90;     % [MPa]
+min_roc             = 15.0;   % [mm] must match optimizer min_roc
+
+% Material curve coefficients (from DataCurvatureCarbon.xlsx)
+curvEq = @(x) 7.951858693686812 .* x.^(-0.9409590693634183) + 0.9900990009786546;
+
+flat_transition = 1221.947188466746;  % [mm]
+
+
+%% ======================== LOAD DATA ====================================
+
+data         = load(dataFile);
+nodeCoords   = double(data.nodesCoords);
+connectivity = double(data.connectivity);
+numNodes     = size(nodeCoords, 1);
+
+
+%% ======================== ORDER NODES ==================================
+
+G   = graph(connectivity(:,1), connectivity(:,2));
+deg = degree(G);
+assert(all(deg == 2), 'Expected a single closed loop (all nodes degree 2).');
+
+startNode      = connectivity(1,1);
+orderedIDs     = zeros(numNodes, 1);
+orderedIDs(1)  = startNode;
+
+mask1 = connectivity(:,1) == startNode;
+mask2 = connectivity(:,2) == startNode;
+idx   = find(mask1 | mask2, 1);
+
+if mask1(idx)
+    nextNode = connectivity(idx,2);
+else
+    nextNode = connectivity(idx,1);
+end
+orderedIDs(2) = nextNode;
+
+edgesLeft       = connectivity;
+edgesLeft(idx,:)= [];
+
+i = 2;
+while i < numNodes
+    currNode = orderedIDs(i);
+    mask1    = edgesLeft(:,1) == currNode;
+    mask2    = edgesLeft(:,2) == currNode;
+    idx      = find(mask1 | mask2, 1);
+    if isempty(idx), break; end
+    if mask1(idx)
+        nextNode = edgesLeft(idx,2);
+    else
+        nextNode = edgesLeft(idx,1);
+    end
+    orderedIDs(i+1) = nextNode;
+    edgesLeft(idx,:)= [];
+    i = i + 1;
+end
+
+orderedIDs   = orderedIDs(orderedIDs > 0);
+orderedNodes = nodeCoords(orderedIDs, :);
+nOrd         = size(orderedNodes, 1);
+
+
+%% ======================== EDGE LENGTHS =================================
+
+orderedConnectivity = [(1:nOrd)', [(2:nOrd)'; 1]];
+
+vecDiff    = orderedNodes(orderedConnectivity(:,2), :) ...
+           - orderedNodes(orderedConnectivity(:,1), :);
+edgeLength = sqrt(sum(vecDiff.^2, 2));
+perimeter  = sum(edgeLength);
+
+
+%% ======================== NODE LENGTH ==================================
+
+nodeLength = zeros(nOrd, 1);
+for j = 1:nOrd
+    idxNodeRows   = find(any(orderedConnectivity == j, 2));
+    nodeLength(j) = sum(edgeLength(idxNodeRows)) / 2;
+end
+
+
+%% ======================== AREA =========================================
+
+area = nodeLength * thickness_val;
+
+
+%% ======================== CURVATURE (RoC) ==============================
+
+overlapCount = 10;
+splineTol    = 1e-2;
+
+X = orderedNodes(:,1);
+Y = orderedNodes(:,2);
+Z = orderedNodes(:,3);
+
+X_ext = [X(end-overlapCount+1:end); X; X(1:overlapCount)];
+Y_ext = [Y(end-overlapCount+1:end); Y; Y(1:overlapCount)];
+Z_ext = [Z(end-overlapCount+1:end); Z; Z(1:overlapCount)];
+
+dX = diff(X_ext); dY = diff(Y_ext); dZ = diff(Z_ext);
+ds = sqrt(dX.^2 + dY.^2 + dZ.^2);
+s  = [0; cumsum(ds)];
+s  = s / s(end);
+
+[sx, ~] = spaps(s', X_ext', splineTol);
+[sy, ~] = spaps(s', Y_ext', splineTol);
+[sz, ~] = spaps(s', Z_ext', splineTol);
+
+sQuery = linspace(s(overlapCount+1), s(end-overlapCount), nOrd);
+
+dx  = fnval(fnder(sx,1), sQuery)';
+dy  = fnval(fnder(sy,1), sQuery)';
+dz  = fnval(fnder(sz,1), sQuery)';
+d2x = fnval(fnder(sx,2), sQuery)';
+d2y = fnval(fnder(sy,2), sQuery)';
+d2z = fnval(fnder(sz,2), sQuery)';
+
+T        = [dx dy dz];
+N        = [d2x d2y d2z];
+cross_TN = cross(T, N, 2);
+num      = vecnorm(cross_TN, 2, 2);
+den      = vecnorm(T, 2, 2).^3;
+
+curvature = num ./ den;
+RoC       = 1 ./ curvature;
+RoC       = min(max(RoC, min_roc), flat_transition);
+
+
+%% ======================== CRUSH STRESS & FORCE =========================
+
+crushStress = constantCrushStress .* curvEq(RoC);
+forceNode   = crushStress .* area;
+forceTotal  = sum(forceNode);
+
+
+%% ======================== COMPARISON ===================================
+
+diff_N   = forceTotal - pythonPredictedForce;
+diff_pct = 100 * diff_N / pythonPredictedForce;
+
+fprintf('\n=========================================================\n');
+fprintf('  VALIDATION RESULTS\n');
+fprintf('=========================================================\n');
+fprintf('  MATLAB force:            %12.2f N\n', forceTotal);
+fprintf('  Python force (from mat): %12.2f N\n', pythonPredictedForce);
+fprintf('  Difference:              %+12.2f N  (%+.2f%%)\n', diff_N, diff_pct);
+fprintf('=========================================================\n');
+
+
+%% ======================== LOG TO CSV ===================================
+
+csvFile = fullfile(cfg.validation, 'validation_log.csv');
+
+if ~isfile(csvFile)
+    fid = fopen(csvFile, 'w');
+    fprintf(fid, 'Timestamp,MatFile,Thickness mm,min roc mm,MATLAB Force N,Python Force N,Difference N,Difference pct\n');
+    fclose(fid);
+end
+
+fid = fopen(csvFile, 'a');
+assert(fid ~= -1, 'Cannot open %s for writing. Is it open in Excel?', csvFile);
+ts  = datestr(now, 31);
+fprintf(fid, '%s,%s,%.2f,%.1f,%.2f,%.2f,%.2f,%.4f\n', ...
+    ts, shape, thickness_val, min_roc, ...
+    forceTotal, pythonPredictedForce, diff_N, diff_pct);
+fclose(fid);
+
+fprintf('Result appended to %s\n', csvFile);
+
+
+%% ======================== EXPORT DIAGNOSTICS ===========================
+% 
+% nDense      = 1000;
+% sDense      = linspace(s(overlapCount+1), s(end-overlapCount), nDense);
+% splineDense = [fnval(sx, sDense)', fnval(sy, sDense)', fnval(sz, sDense)'];
+% 
+% save(fullfile(cfg.validation, shape), ...
+%     'orderedNodes', ...
+%     'RoC', ...
+%     'crushStress', ...
+%     'nodeLength', ...
+%     'forceNode', ...
+%     'forceTotal', ...
+%     'sQuery', ...
+%     'splineDense');
+% 
+% fprintf('Diagnostics saved to: %s.mat\n', shape);
